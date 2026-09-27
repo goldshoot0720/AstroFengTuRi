@@ -31,7 +31,7 @@ npm run dev            # http://localhost:4321 ，後台 http://localhost:4321/a
 
 專案在 Vercel 上建置時會自動改用 `@astrojs/vercel`，資料改存到 **Vercel Blob**（私有）。
 
-1. 在 Vercel 專案的 **Storage** 分頁建立 Blob Store，存取權限選 **Private**，並連結到此專案，Vercel 會自動加入 `BLOB_READ_WRITE_TOKEN`
+1. 在 Vercel 專案的 **Storage** 分頁建立 Blob Store，存取權限選 **Private**，並連結到此專案，Vercel 會自動加入 `BLOB_READ_WRITE_TOKEN` 或 `BLOB_STORE_ID`
 2. 在 **Settings → Environment Variables** 加入 `ADMIN_PASSWORD` 與 `SESSION_SECRET`
 3. 重新部署（Deployments → Redeploy）
 
@@ -54,7 +54,7 @@ npm start              # 會自動讀取 .env；可用 HOST / PORT 環境變數�
 | --- | --- |
 | `ADMIN_PASSWORD` | 後台登入密碼 |
 | `SESSION_SECRET` | 簽署登入 Cookie 的隨機字串（`openssl rand -hex 32`） |
-| `BLOB_READ_WRITE_TOKEN` | 設定後改用 Vercel Blob 儲存資料（Vercel 連結 Blob Store 時會自動加入） |
+| `BLOB_READ_WRITE_TOKEN` / `BLOB_STORE_ID` | 任一個存在時改用 Vercel Blob 儲存資料（Vercel 連結 Blob Store 時會自動加入；`BLOB_STORE_ID` 搭配 Vercel OIDC 驗證） |
 | `DATA_DIR` | 未使用 Blob 時的本機資料目錄，預設 `./data` |
 | `SITE_URL` | 網站正式網址，用於 canonical 與 og:image（Vercel 上預設使用正式網域） |
 

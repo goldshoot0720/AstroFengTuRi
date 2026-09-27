@@ -1,10 +1,10 @@
-// 儲存層：有設定 BLOB_READ_WRITE_TOKEN 時使用 Vercel Blob（私有），否則使用本機 DATA_DIR
+// 儲存層：已連結 Vercel Blob 時（BLOB_READ_WRITE_TOKEN 或 OIDC 的 BLOB_STORE_ID）使用私有 Blob，否則使用本機 DATA_DIR
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { BlobPreconditionFailedError, get, put } from '@vercel/blob';
 
 const DATA_DIR = path.resolve(process.env.DATA_DIR || './data');
-const useBlob = () => Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+const useBlob = () => Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 
 export class ConflictError extends Error {}
 
@@ -21,7 +21,7 @@ export function storageStatus() {
 
 function assertWritable() {
   if (!storageStatus().writable) {
-    throw new Error('Vercel 上無法寫入檔案，請在 Vercel 專案連結 Blob Storage（BLOB_READ_WRITE_TOKEN）');
+    throw new Error('Vercel 上無法寫入檔案，請在 Vercel 專案連結 Blob Storage 並重新部署');
   }
 }
 
