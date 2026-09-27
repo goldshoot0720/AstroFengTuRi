@@ -8,7 +8,11 @@ import { readFileSync } from 'node:fs';
 const onVercel = Boolean(process.env.VERCEL);
 const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
 
-/** 列出套件本身與其所有相依套件的名稱 */
+/**
+ * 列出套件本身與其所有相依套件的名稱
+ * @param {string} name
+ * @param {Set<string>} [seen]
+ */
 function withDependencies(name, seen = new Set()) {
   if (seen.has(name)) return seen;
   seen.add(name);
