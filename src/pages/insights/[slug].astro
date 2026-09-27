@@ -1,0 +1,90 @@
+---
+import Base from '../../layouts/Base.astro';
+import PostCard from '../../components/PostCard.astro';
+import { getPublishedPostBySlug, listPosts } from '../../lib/db';
+import { formatDate } from '../../lib/format';
+
+const post = await getPublishedPostBySlug(Astro.params.slug!);
+if (!post) return Astro.rewrite('/404');
+
+const related = (await listPosts({ category: post.category })).filter((p) => p.id !== post.id).slice(0, 3);
+---
+
+<Base title={post.title} description={post.excerpt} image={post.cover || undefined}>
+  <article>
+    <header class="page-hero">
+      <div class="wrap narrow">
+        <a href={`/insights?category=${encodeURIComponent(post.category)}`} class="eyebrow cat">{post.category}</a>
+        <h1>{post.title}</h1>
+        <p class="meta">
+          <time datetime={post.publishedAt}>{formatDate(post.publishedAt)}</time>
+          <span>·</span>
+          <span>{post.author}</span>
+        </p>
+      </div>
+    </header>
+
+    <div class="section section--paper body">
+      <div class="wrap narrow">
+        {post.cover && <img class="cover" src={post.cover} alt="" />}
+        <div class="prose" set:html={post.content} />
+        <p class="disclaimer">
+          本文內容僅為市場資訊分享與研究觀點，不構成任何投資建議或推薦。投資人應審慎評估自身財務狀況與風險承受度，並自行承擔投資風險。
+        </p>
+        <a href="/insights" class="link-arrow">← 返回文章列表</a>
+      </div>
+    </div>
+  </article>
+
+  {related.length > 0 && (
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="eyebrow">Related</p>
+          <h2>相關文章</h2>
+        </div>
+        <div class="posts">{related.map((p) => <PostCard post={p} />)}</div>
+      </div>
+    </section>
+  )}
+</Base>
+
+<style>
+  .narrow {
+    max-width: 780px;
+  }
+  .cat {
+    text-decoration: none;
+  }
+  .meta {
+    display: flex;
+    gap: 10px;
+    font-size: 14px;
+  }
+  .body {
+    padding-top: 56px;
+  }
+  .cover {
+    width: 100%;
+    margin-bottom: 40px;
+    border-radius: var(--radius);
+  }
+  .disclaimer {
+    margin: 56px 0 32px;
+    padding: 18px 20px;
+    background: var(--ivory);
+    border-left: 3px solid var(--gold-500);
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .posts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+  }
+  @media (max-width: 900px) {
+    .posts {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

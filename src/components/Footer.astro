@@ -1,0 +1,100 @@
+---
+import { NAV, SITE } from '../config';
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="wrap grid">
+    <div>
+      <p class="f-name">{SITE.name}</p>
+      <p class="f-en">{SITE.nameEn}</p>
+      <p class="f-tag">{SITE.tagline}</p>
+    </div>
+    <div>
+      <h4>網站導覽</h4>
+      <ul>
+        {NAV.map((n) => <li><a href={n.href}>{n.label}</a></li>)}
+      </ul>
+    </div>
+    <div>
+      <h4>聯絡資訊</h4>
+      <ul>
+        <li>電話：<a href={`tel:${SITE.phone.replace(/-/g, '')}`}>{SITE.phone}</a></li>
+        <li>信箱：<a href={`mailto:${SITE.email}`}>{SITE.email}</a></li>
+        <li>地址：{SITE.address}</li>
+        <li>服務時間：{SITE.hours}</li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap disclaimer">
+    <p>
+      風險揭露：投資一定有風險，基金或其他金融商品投資有賺有賠，過去績效不代表未來表現，申購前應詳閱公開說明書。本網站內容僅供參考，不構成任何投資建議或要約。
+    </p>
+    <p class="copy">© {year} {SITE.name} 版權所有</p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    background: var(--navy-900);
+    color: #9fb0c0;
+    font-size: 14px;
+    padding: 72px 0 28px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1.4fr;
+    gap: 48px;
+    padding-bottom: 48px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .f-name {
+    font-family: var(--serif);
+    font-size: 22px;
+    color: #fff;
+    letter-spacing: 0.14em;
+    margin: 0;
+  }
+  .f-en {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    color: var(--gold-500);
+  }
+  .f-tag {
+    margin-top: 20px;
+  }
+  h4 {
+    color: #fff;
+    font-size: 15px;
+    letter-spacing: 0.16em;
+    margin-bottom: 16px;
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+  }
+  a {
+    text-decoration: none;
+  }
+  a:hover {
+    color: var(--gold-400);
+  }
+  .disclaimer {
+    padding-top: 24px;
+    font-size: 12.5px;
+    line-height: 1.9;
+    color: #74879a;
+  }
+  .copy {
+    margin: 0;
+  }
+  @media (max-width: 800px) {
+    .grid {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+  }
+</style>

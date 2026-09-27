@@ -1,0 +1,152 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { isLive, listPosts, listMessages } from '../../lib/db';
+import { formatDate } from '../../lib/format';
+
+const posts = await listPosts({ includeDrafts: true });
+const unread = (await listMessages()).filter((m) => !m.read).length;
+const published = posts.filter((p) => p.status === 'published').length;
+---
+
+<Admin title="文章管理">
+  <div class="top">
+    <h1>文章管理</h1>
+    <a href="/admin/posts/new" class="a-btn a-btn--primary">＋ 新增文章</a>
+  </div>
+
+  <div class="stats">
+    <div class="panel"><span>全部文章</span><strong>{posts.length}</strong></div>
+    <div class="panel"><span>已發布</span><strong>{published}</strong></div>
+    <div class="panel"><span>草稿</span><strong>{posts.length - published}</strong></div>
+    <a class="panel" href="/admin/messages"><span>未讀訊息</span><strong>{unread}</strong></a>
+  </div>
+
+  <div class="panel list">
+    <div class="tools">
+      <input type="search" id="q" placeholder="搜尋標題…" aria-label="搜尋文章" />
+    </div>
+    {posts.length === 0 ? (
+      <p class="empty">還沒有文章，<a href="/admin/posts/new">撰寫第一篇</a>。</p>
+    ) : (
+      <div class="scroll">
+        <table class="a-table">
+          <thead>
+            <tr><th>標題</th><th>分類</th><th>狀態</th><th>發布日期</th><th></th></tr>
+          </thead>
+          <tbody>
+            {posts.map((p) => (
+              <tr data-title={p.title.toLowerCase()}>
+                <td class="title"><a href={`/admin/posts/${p.id}`}>{p.title}</a></td>
+                <td>{p.category}</td>
+                <td>
+                  {p.status === 'draft' ? (
+                    <span class="badge badge--draft">草稿</span>
+                  ) : isLive(p) ? (
+                    <span class="badge badge--pub">已發布</span>
+                  ) : (
+                    <span class="badge badge--sched">排程中</span>
+                  )}
+                </td>
+                <td>{formatDate(p.publishedAt)}</td>
+                <td class="acts">
+                  {isLive(p) && <a class="a-btn a-btn--sm" href={`/insights/${p.slug}`} target="_blank" rel="noopener">檢視</a>}
+                  <a class="a-btn a-btn--sm" href={`/admin/posts/${p.id}`}>編輯</a>
+                  <button class="a-btn a-btn--sm a-btn--danger" data-delete={p.id} data-name={p.title}>刪除</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+</Admin>
+
+<script>
+  const q = document.querySelector<HTMLInputElement>('#q');
+  q?.addEventListener('input', () => {
+    const term = q.value.trim().toLowerCase();
+    document.querySelectorAll<HTMLTableRowElement>('tr[data-title]').forEach((tr) => {
+      tr.hidden = !!term && !tr.dataset.title!.includes(term);
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>('[data-delete]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm(`確定要刪除「${btn.dataset.name}」嗎？此動作無法復原。`)) return;
+      btn.disabled = true;
+      const res = await fetch(`/api/admin/posts/${btn.dataset.delete}`, { method: 'DELETE' });
+      if (res.ok) btn.closest('tr')?.remove();
+      else {
+        alert('刪除失敗，請重新整理後再試。');
+        btn.disabled = false;
+      }
+    });
+  });
+</script>
+
+<style>
+  .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stats .panel {
+    padding: 18px 20px;
+    display: grid;
+    text-decoration: none;
+  }
+  .stats span {
+    font-size: 13px;
+    color: var(--a-soft);
+  }
+  .stats strong {
+    font-size: 26px;
+  }
+  .tools {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--a-line);
+  }
+  .tools input {
+    width: min(100%, 320px);
+    padding: 8px 12px;
+    border: 1px solid var(--a-line);
+    border-radius: 6px;
+    font: inherit;
+  }
+  .scroll {
+    overflow-x: auto;
+  }
+  .title a {
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .title a:hover {
+    color: #1b5fa8;
+  }
+  .acts {
+    text-align: right;
+    white-space: nowrap;
+  }
+  .acts > * + * {
+    margin-left: 6px;
+  }
+  .empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--a-soft);
+  }
+  @media (max-width: 760px) {
+    .stats {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+</style>

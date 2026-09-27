@@ -1,0 +1,321 @@
+---
+import Base from '../layouts/Base.astro';
+import PostCard from '../components/PostCard.astro';
+import { SITE } from '../config';
+import { listPosts } from '../lib/db';
+import { SERVICES } from '../lib/services';
+
+const latest = (await listPosts()).slice(0, 3);
+
+const pillars = [
+  { value: '1 對 1', label: '專屬顧問服務' },
+  { value: '4 大', label: '核心服務領域' },
+  { value: '每季', label: '投資組合檢視' },
+  { value: '獨立', label: '研究與建議' },
+];
+
+const steps = [
+  { no: '01', title: '深度了解', text: '釐清您的財務現況、人生目標、風險承受度與時間框架。' },
+  { no: '02', title: '量身規劃', text: '依據研究與模型，設計專屬的資產配置與執行策略。' },
+  { no: '03', title: '紀律執行', text: '分批建置投資組合，嚴守配置比例與風險控管原則。' },
+  { no: '04', title: '持續追蹤', text: '定期檢視績效與市場變化，適時再平衡並回報進度。' },
+];
+---
+
+<Base>
+  <section class="hero">
+    <div class="wrap hero-inner">
+      <p class="eyebrow">{SITE.nameEn}</p>
+      <h1>以紀律守護財富<br />以遠見成就傳承</h1>
+      <p class="lead">
+        鋒塗利資產管理秉持嚴謹研究與長期思維，為個人、家族與企業提供全方位的資產配置與財富管理服務，陪伴您穩健走過每一個市場循環。
+      </p>
+      <div class="actions">
+        <a href="/contact" class="btn btn--gold">預約專屬諮詢</a>
+        <a href="/services" class="btn btn--ghost">了解服務項目</a>
+      </div>
+    </div>
+    <div class="wrap pillars">
+      {pillars.map((p) => (
+        <div class="pillar">
+          <strong>{p.value}</strong>
+          <span>{p.label}</span>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="section section--paper">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Our Services</p>
+        <h2>全方位財富管理服務</h2>
+        <p>從資產累積、配置到傳承，我們以整體觀點規劃，讓每一分資產都有明確的目的與方向。</p>
+      </div>
+      <div class="services">
+        {SERVICES.map((s) => (
+          <a href={`/services#${s.id}`} class="service">
+            <span class="icon" set:html={s.icon} />
+            <h3>{s.title}</h3>
+            <p>{s.summary}</p>
+            <span class="link-arrow">了解更多 →</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--navy">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Our Approach</p>
+        <h2>我們的服務流程</h2>
+        <p>好的財富管理不是一次性的決定，而是一段持續陪伴、動態調整的旅程。</p>
+      </div>
+      <ol class="steps">
+        {steps.map((s) => (
+          <li>
+            <span class="no">{s.no}</span>
+            <h3>{s.title}</h3>
+            <p>{s.text}</p>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  {latest.length > 0 && (
+    <section class="section">
+      <div class="wrap">
+        <div class="head-row">
+          <div class="section-head">
+            <p class="eyebrow">Insights</p>
+            <h2>最新投資觀點</h2>
+          </div>
+          <a href="/insights" class="link-arrow">查看全部文章 →</a>
+        </div>
+        <div class="posts">
+          {latest.map((post) => <PostCard post={post} />)}
+        </div>
+      </div>
+    </section>
+  )}
+
+  <section class="cta">
+    <div class="wrap cta-inner">
+      <div>
+        <h2>讓專業為您的財富把關</h2>
+        <p>歡迎與我們聯繫，安排一次不具壓力的初步諮詢。</p>
+      </div>
+      <a href="/contact" class="btn btn--navy">立即預約</a>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .hero {
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse at 85% 10%, rgba(201, 164, 92, 0.22), transparent 55%),
+      linear-gradient(160deg, var(--navy-900), var(--navy-700));
+    color: #fff;
+    padding: clamp(80px, 12vw, 150px) 0 0;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(201, 164, 92, 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(201, 164, 92, 0.07) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: linear-gradient(90deg, transparent 30%, #000);
+    pointer-events: none;
+  }
+  .hero-inner {
+    position: relative;
+    max-width: var(--wrap);
+  }
+  .hero h1 {
+    font-size: clamp(34px, 6vw, 64px);
+    line-height: 1.35;
+    letter-spacing: 0.08em;
+    margin-bottom: 28px;
+  }
+  .lead {
+    max-width: 580px;
+    color: #b7c4d0;
+    font-size: clamp(15px, 1.6vw, 17px);
+    margin-bottom: 40px;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .pillars {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    margin-top: clamp(64px, 9vw, 110px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .pillar {
+    padding: 32px 0 40px;
+    display: grid;
+    gap: 4px;
+  }
+  .pillar + .pillar {
+    padding-left: 32px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .pillar strong {
+    font-family: var(--serif);
+    font-size: clamp(24px, 3vw, 32px);
+    color: var(--gold-400);
+    font-weight: 600;
+  }
+  .pillar span {
+    font-size: 14px;
+    color: #9fb0c0;
+    letter-spacing: 0.12em;
+  }
+  .services {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  .service {
+    background: var(--paper);
+    padding: 40px 30px;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    transition: background 0.2s;
+  }
+  .service:hover {
+    background: var(--gold-100);
+  }
+  .icon {
+    display: block;
+    width: 44px;
+    height: 44px;
+    color: var(--gold-500);
+    margin-bottom: 24px;
+  }
+  .icon :global(svg) {
+    width: 100%;
+    height: 100%;
+  }
+  .service h3 {
+    font-size: 20px;
+  }
+  .service p {
+    color: var(--ink-soft);
+    font-size: 14.5px;
+    flex: 1;
+  }
+  .service .link-arrow {
+    align-self: flex-start;
+  }
+  .steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 32px;
+  }
+  .steps li {
+    border-top: 1px solid rgba(201, 164, 92, 0.4);
+    padding-top: 28px;
+  }
+  .no {
+    font-family: var(--serif);
+    font-size: 40px;
+    color: var(--gold-500);
+    line-height: 1;
+    display: block;
+    margin-bottom: 18px;
+  }
+  .steps h3 {
+    font-size: 20px;
+    color: #fff;
+  }
+  .steps p {
+    color: #aab8c5;
+    font-size: 14.5px;
+  }
+  .head-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    margin-bottom: 56px;
+  }
+  .head-row .section-head {
+    margin: 0;
+  }
+  .posts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+  }
+  .cta {
+    background: var(--gold-500);
+    padding: 64px 0;
+  }
+  .cta-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .cta h2 {
+    color: var(--navy-900);
+    font-size: clamp(24px, 3vw, 32px);
+    margin-bottom: 6px;
+  }
+  .cta p {
+    margin: 0;
+    color: var(--navy-700);
+  }
+  @media (max-width: 960px) {
+    .services,
+    .steps {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .posts {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  @media (max-width: 640px) {
+    .pillars {
+      grid-template-columns: 1fr 1fr;
+    }
+    .pillar,
+    .pillar + .pillar {
+      padding: 24px 0 24px 16px;
+      border-left: 0;
+    }
+    .pillar:nth-child(even) {
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .pillar:nth-child(n + 3) {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .services,
+    .steps,
+    .posts {
+      grid-template-columns: 1fr;
+    }
+    .head-row {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>

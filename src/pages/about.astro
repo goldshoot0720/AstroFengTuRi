@@ -1,0 +1,130 @@
+---
+import Base from '../layouts/Base.astro';
+import { SITE } from '../config';
+
+const values = [
+  { title: '客戶利益優先', text: '所有建議以客戶的長期利益為出發點，不以商品銷售為導向。' },
+  { title: '研究驅動決策', text: '以總體經濟、產業與財務數據為基礎，避免情緒與短期雜訊干擾。' },
+  { title: '紀律與透明', text: '清楚說明策略邏輯、費用結構與風險，定期提供完整報告。' },
+  { title: '長期夥伴關係', text: '陪伴客戶走過不同人生階段與市場循環，持續調整與精進。' },
+];
+---
+
+<Base title="關於我們">
+  <section class="page-hero">
+    <div class="wrap">
+      <p class="eyebrow">About Us</p>
+      <h1>關於{SITE.shortName}</h1>
+      <p>我們相信，財富管理的本質是信任與紀律。</p>
+    </div>
+  </section>
+
+  <section class="section section--paper">
+    <div class="wrap story">
+      <div>
+        <p class="eyebrow">Our Story</p>
+        <h2>專注長期，<br />穩健前行</h2>
+      </div>
+      <div class="text">
+        <p>
+          {SITE.name}由一群具備投資研究、財務規劃與家族辦公室經驗的專業人士創立。我們看見許多投資人在市場波動中追高殺低，也看見許多家庭因缺乏規劃而在傳承時產生遺憾，因此決定以「紀律」與「遠見」作為核心，打造真正站在客戶角度的資產管理服務。
+        </p>
+        <p>
+          我們不追逐短期熱潮，而是以嚴謹的研究與清楚的配置框架，協助客戶建立可長期持有的投資組合。從個人理財、退休準備到家族與企業的財富規劃，我們都以整體觀點出發，讓每一項決策都能回應您真正在意的人生目標。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Core Values</p>
+        <h2>我們的核心價值</h2>
+      </div>
+      <div class="values">
+        {values.map((v, i) => (
+          <div class="value">
+            <span>0{i + 1}</span>
+            <h3>{v.title}</h3>
+            <p>{v.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--navy">
+    <div class="wrap quote">
+      <blockquote>「投資的成功，來自於在正確的方向上，持續而有紀律地前進。」</blockquote>
+      <p>— {SITE.name} 投資團隊</p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .story {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr;
+    gap: clamp(32px, 6vw, 96px);
+  }
+  .story h2 {
+    font-size: clamp(28px, 3.6vw, 40px);
+  }
+  .text p {
+    font-size: 16.5px;
+    line-height: 2.1;
+  }
+  .values {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+  }
+  .value {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    padding: 36px 28px;
+  }
+  .value span {
+    font-family: var(--serif);
+    color: var(--gold-500);
+    font-size: 28px;
+  }
+  .value h3 {
+    font-size: 19px;
+    margin-top: 14px;
+  }
+  .value p {
+    color: var(--ink-soft);
+    font-size: 14.5px;
+    margin: 0;
+  }
+  .quote {
+    text-align: center;
+    max-width: 820px;
+  }
+  blockquote {
+    margin: 0 0 20px;
+    font-family: var(--serif);
+    font-size: clamp(22px, 3vw, 32px);
+    line-height: 1.7;
+    color: #fff;
+  }
+  .quote p {
+    color: var(--gold-500);
+    letter-spacing: 0.14em;
+  }
+  @media (max-width: 900px) {
+    .story {
+      grid-template-columns: 1fr;
+    }
+    .values {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  @media (max-width: 560px) {
+    .values {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

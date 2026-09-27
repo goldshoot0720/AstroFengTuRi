@@ -1,0 +1,24 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import PostEditor from '../../../components/admin/PostEditor.astro';
+import { getPostById } from '../../../lib/db';
+
+const post = await getPostById(Astro.params.id!);
+if (!post) return Astro.redirect('/admin');
+---
+
+<Admin title="編輯文章">
+  <p class="crumb"><a href="/admin">← 文章管理</a></p>
+  <PostEditor post={post} />
+</Admin>
+
+<style>
+  .crumb {
+    margin: 0 0 8px;
+    font-size: 14px;
+  }
+  .crumb a {
+    color: var(--a-soft);
+    text-decoration: none;
+  }
+</style>

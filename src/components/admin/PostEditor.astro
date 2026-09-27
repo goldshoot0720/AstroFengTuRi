@@ -1,0 +1,391 @@
+---
+import 'quill/dist/quill.snow.css';
+import { CATEGORIES } from '../../config';
+import type { Post } from '../../lib/db';
+import { toLocalInput } from '../../lib/format';
+
+interface Props {
+  post?: Post;
+}
+const { post } = Astro.props;
+
+// 傳給前端腳本的初始資料（轉義 < 以免內容中的結束標籤提前關閉 script 元素）
+const initial = JSON.stringify({ id: post?.id ?? null, delta: post?.delta ?? null, html: post?.content ?? '' }).replace(
+  /</g,
+  '\\u003c',
+);
+---
+
+<form id="post-form" class="editor-grid" novalidate>
+  <div class="col-main">
+    <input
+      class="title-input"
+      name="title"
+      placeholder="文章標題"
+      value={post?.title ?? ''}
+      maxlength="200"
+      required
+      aria-label="文章標題"
+    />
+    <div class="panel editor-box">
+      <div id="editor"></div>
+    </div>
+    <p class="hint">提示：可直接拖放或貼上圖片，會自動上傳；插入影片可貼上 YouTube 或 Vimeo 網址。</p>
+  </div>
+
+  <aside class="col-side">
+    <div class="panel box">
+      <h2>發布</h2>
+      <div class="a-field">
+        <label for="status">狀態</label>
+        <select id="status" name="status">
+          <option value="draft" selected={post?.status !== 'published'}>草稿</option>
+          <option value="published" selected={post?.status === 'published'}>已發布</option>
+        </select>
+      </div>
+      <div class="a-field">
+        <label for="publishedAt">發布時間（台灣時間）</label>
+        <input id="publishedAt" name="publishedAt" type="datetime-local" value={post ? toLocalInput(post.publishedAt) : ''} />
+        <small>留白則使用首次儲存的時間；設定未來時間即為排程發布</small>
+      </div>
+      <div class="save-row">
+        <button type="submit" class="a-btn a-btn--primary" id="save-btn">儲存</button>
+        {post?.status === 'published' && (
+          <a class="a-btn" href={`/insights/${post.slug}`} target="_blank" rel="noopener" id="view-link">檢視文章 ↗</a>
+        )}
+      </div>
+      <p class="saved-at" id="saved-at"></p>
+    </div>
+
+    <div class="panel box">
+      <h2>文章設定</h2>
+      <div class="a-field">
+        <label for="category">分類</label>
+        <select id="category" name="category">
+          {CATEGORIES.map((c) => <option selected={post?.category === c}>{c}</option>)}
+        </select>
+      </div>
+      <div class="a-field">
+        <label for="slug">網址代稱</label>
+        <input id="slug" name="slug" value={post?.slug ?? ''} placeholder="例如 2026-market-outlook" maxlength="100" pattern="[a-z0-9]+(-[a-z0-9]+)*" />
+        <small>/insights/<span id="slug-preview">{post?.slug || '（自動產生）'}</span></small>
+      </div>
+      <div class="a-field">
+        <label for="author">作者</label>
+        <input id="author" name="author" value={post?.author ?? ''} placeholder="鋒塗利研究團隊" maxlength="50" />
+      </div>
+      <div class="a-field">
+        <label for="excerpt">摘要</label>
+        <textarea id="excerpt" name="excerpt" rows="4" maxlength="300" placeholder="留白則自動擷取內文前 120 字">{post?.excerpt ?? ''}</textarea>
+      </div>
+    </div>
+
+    <div class="panel box">
+      <h2>封面圖片</h2>
+      <input type="hidden" name="cover" id="cover" value={post?.cover ?? ''} />
+      <div class="cover-preview" id="cover-preview">
+        {post?.cover ? <img src={post.cover} alt="封面預覽" /> : <span>尚未設定封面</span>}
+      </div>
+      <div class="save-row">
+        <label class="a-btn a-btn--sm">
+          上傳圖片
+          <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" id="cover-file" hidden />
+        </label>
+        <button type="button" class="a-btn a-btn--sm a-btn--danger" id="cover-clear">移除</button>
+      </div>
+    </div>
+  </aside>
+</form>
+
+<script type="application/json" id="post-initial" set:html={initial} />
+
+<script>
+  import Quill from 'quill';
+
+  const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+  const initial = JSON.parse(document.getElementById('post-initial')!.textContent!);
+  let postId: string | null = initial.id;
+  let dirty = false;
+
+  const toastEl = document.getElementById('toast')!;
+  function toast(msg: string, isError = false) {
+    toastEl.textContent = msg;
+    toastEl.classList.toggle('err', isError);
+    toastEl.classList.add('show');
+    clearTimeout((toast as any).t);
+    (toast as any).t = setTimeout(() => toastEl.classList.remove('show'), 3000);
+  }
+
+  async function uploadImage(file: File): Promise<string> {
+    if (!IMAGE_TYPES.includes(file.type)) throw new Error('僅支援 JPG、PNG、WebP、GIF 圖片');
+    const body = new FormData();
+    body.append('file', file);
+    const res = await fetch('/api/admin/upload', { method: 'POST', body });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || '圖片上傳失敗');
+    return data.url;
+  }
+
+  async function insertImages(index: number, files: File[]) {
+    for (const file of files) {
+      try {
+        toast('圖片上傳中…');
+        const url = await uploadImage(file);
+        quill.insertEmbed(index, 'image', url, 'user');
+        quill.setSelection(index + 1, 0, 'silent');
+        index += 1;
+        toast('圖片已插入');
+      } catch (err) {
+        toast((err as Error).message, true);
+      }
+    }
+  }
+
+  const quill = new Quill('#editor', {
+    theme: 'snow',
+    placeholder: '開始撰寫文章內容…',
+    modules: {
+      toolbar: {
+        container: [
+          [{ header: [1, 2, 3, false] }],
+          ['bold', 'italic', 'underline', 'strike'],
+          [{ color: [] }, { background: [] }],
+          [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
+          [{ align: [] }],
+          ['blockquote', 'code-block'],
+          ['link', 'image', 'video'],
+          ['clean'],
+        ],
+        handlers: {
+          image() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = IMAGE_TYPES.join(',');
+            input.multiple = true;
+            input.onchange = () => {
+              const range = quill.getSelection(true);
+              insertImages(range.index, Array.from(input.files ?? []));
+            };
+            input.click();
+          },
+        },
+      },
+      // 拖放或貼上圖片時改為上傳到伺服器，而不是存成 base64
+      uploader: {
+        mimetypes: IMAGE_TYPES,
+        handler(range: { index: number }, files: File[]) {
+          insertImages(range.index, files);
+        },
+      },
+    },
+  });
+
+  if (initial.delta) quill.setContents(initial.delta, 'silent');
+  else if (initial.html) quill.clipboard.dangerouslyPasteHTML(initial.html, 'silent');
+  quill.on('text-change', () => (dirty = true));
+
+  const form = document.getElementById('post-form') as HTMLFormElement;
+  form.addEventListener('input', () => (dirty = true));
+  window.addEventListener('beforeunload', (e) => {
+    if (dirty) e.preventDefault();
+  });
+
+  // 網址代稱預覽
+  const slugInput = form.elements.namedItem('slug') as HTMLInputElement;
+  slugInput.addEventListener('input', () => {
+    slugInput.value = slugInput.value.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    document.getElementById('slug-preview')!.textContent = slugInput.value || '（自動產生）';
+  });
+
+  // 封面圖片
+  const coverInput = document.getElementById('cover') as HTMLInputElement;
+  const coverPreview = document.getElementById('cover-preview')!;
+  function setCover(url: string) {
+    coverInput.value = url;
+    coverPreview.innerHTML = '';
+    if (url) {
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = '封面預覽';
+      coverPreview.append(img);
+    } else {
+      coverPreview.innerHTML = '<span>尚未設定封面</span>';
+    }
+    dirty = true;
+  }
+  document.getElementById('cover-file')!.addEventListener('change', async (e) => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    try {
+      toast('封面上傳中…');
+      setCover(await uploadImage(file));
+      toast('封面已更新，記得儲存文章');
+    } catch (err) {
+      toast((err as Error).message, true);
+    }
+  });
+  document.getElementById('cover-clear')!.addEventListener('click', () => setCover(''));
+
+  // 儲存
+  const saveBtn = document.getElementById('save-btn') as HTMLButtonElement;
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const payload: Record<string, unknown> = {
+      ...Object.fromEntries(fd.entries()),
+      // Quill 2 的 getSemanticHTML 會把所有空白轉成 &nbsp;，還原為一般空白以利換行
+      content: quill.getLength() > 1 ? quill.getSemanticHTML().replaceAll('&nbsp;', ' ') : '',
+      delta: quill.getContents(),
+    };
+    if (!String(payload.title).trim()) {
+      toast('請輸入文章標題', true);
+      (form.elements.namedItem('title') as HTMLInputElement).focus();
+      return;
+    }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = '儲存中…';
+    try {
+      const res = await fetch(postId ? `/api/admin/posts/${postId}` : '/api/admin/posts', {
+        method: postId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) throw new Error('登入已逾時，請另開分頁重新登入後再儲存');
+      if (!res.ok) throw new Error(data.error || '儲存失敗');
+
+      dirty = false;
+      slugInput.value = data.slug;
+      document.getElementById('slug-preview')!.textContent = data.slug;
+      document.getElementById('saved-at')!.textContent = `已儲存於 ${new Date().toLocaleTimeString('zh-TW', { hour12: false })}`;
+      if (!postId) {
+        // 新文章建立後切換到編輯網址
+        postId = data.id;
+        history.replaceState(null, '', `/admin/posts/${data.id}`);
+        document.title = document.title.replace('新增文章', '編輯文章');
+      }
+      toast(
+        data.status !== 'published' ? '草稿已儲存' : new Date(data.publishedAt) > new Date() ? '已排程發布' : '文章已發布',
+      );
+    } catch (err) {
+      toast((err as Error).message, true);
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = '儲存';
+    }
+  });
+
+  // Ctrl/Cmd + S 快速儲存
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+</script>
+
+<style>
+  .editor-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 24px;
+    align-items: start;
+  }
+  .title-input {
+    width: 100%;
+    font: inherit;
+    font-size: 26px;
+    font-weight: 600;
+    padding: 12px 4px;
+    margin-bottom: 16px;
+    border: 0;
+    border-bottom: 1px solid var(--a-line);
+    background: transparent;
+  }
+  .title-input:focus {
+    outline: none;
+    border-bottom-color: var(--a-gold);
+  }
+  .editor-box {
+    overflow: hidden;
+  }
+  .editor-box :global(.ql-toolbar.ql-snow) {
+    border: 0;
+    border-bottom: 1px solid var(--a-line);
+    position: sticky;
+    top: 0;
+    background: #fafbfc;
+    z-index: 2;
+  }
+  .editor-box :global(.ql-container.ql-snow) {
+    border: 0;
+    font-family: inherit;
+    font-size: 16px;
+  }
+  .editor-box :global(.ql-editor) {
+    min-height: 520px;
+    line-height: 1.9;
+    padding: 24px 28px;
+  }
+  .editor-box :global(.ql-editor img) {
+    max-width: 100%;
+  }
+  .hint {
+    font-size: 13px;
+    color: var(--a-soft);
+  }
+  .col-side {
+    display: grid;
+    gap: 16px;
+    position: sticky;
+    top: 16px;
+  }
+  .box {
+    padding: 18px 18px 6px;
+  }
+  .box h2 {
+    font-size: 15px;
+    margin: 0 0 14px;
+  }
+  .save-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .saved-at {
+    font-size: 12px;
+    color: var(--a-soft);
+    margin: 0 0 12px;
+  }
+  .saved-at:empty {
+    display: none;
+  }
+  .cover-preview {
+    aspect-ratio: 16 / 9;
+    border: 1px dashed var(--a-line);
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    margin-bottom: 12px;
+    color: var(--a-soft);
+    font-size: 13px;
+  }
+  .cover-preview :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  @media (max-width: 1000px) {
+    .editor-grid {
+      grid-template-columns: 1fr;
+    }
+    .col-side {
+      position: static;
+    }
+  }
+</style>

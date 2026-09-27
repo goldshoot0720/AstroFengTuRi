@@ -1,0 +1,92 @@
+---
+import '../../styles/admin.css';
+import { SITE } from '../../config';
+import { checkPassword, createSession } from '../../lib/auth';
+
+const nextParam = Astro.url.searchParams.get('next') ?? '';
+const next = /^\/admin(\/[\w\-/]*)?$/.test(nextParam) ? nextParam : '/admin';
+
+if (Astro.locals.isAdmin) return Astro.redirect(next);
+
+let error = '';
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  if (checkPassword(String(form.get('password') ?? ''))) {
+    createSession(Astro.cookies);
+    return Astro.redirect(next);
+  }
+  // 登入失敗時稍作延遲，降低暴力破解效率
+  await new Promise((r) => setTimeout(r, 800));
+  error = process.env.ADMIN_PASSWORD || import.meta.env.ADMIN_PASSWORD ? '密碼錯誤，請再試一次。' : '尚未設定 ADMIN_PASSWORD 環境變數。';
+}
+---
+
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>後台登入｜{SITE.name}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <main class="login">
+      <form method="post" class="panel">
+        <p class="mark">鋒</p>
+        <h1>{SITE.name}</h1>
+        <p class="sub">網站管理後台</p>
+        {error && <p class="err">{error}</p>}
+        <div class="a-field">
+          <label for="password">管理密碼</label>
+          <input id="password" name="password" type="password" required autofocus autocomplete="current-password" />
+        </div>
+        <button class="a-btn a-btn--primary" type="submit">登入</button>
+      </form>
+    </main>
+  </body>
+</html>
+
+<style>
+  .login {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: #0b1a28 radial-gradient(ellipse at 80% 0%, rgba(201, 164, 92, 0.2), transparent 60%);
+  }
+  form {
+    width: min(100%, 380px);
+    padding: 40px 32px;
+    text-align: center;
+  }
+  .mark {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 16px;
+    border: 1px solid var(--a-gold);
+    color: var(--a-gold);
+    font-size: 26px;
+  }
+  .sub {
+    color: var(--a-soft);
+    margin: 4px 0 28px;
+  }
+  .a-field {
+    text-align: left;
+  }
+  .err {
+    background: #fbeaea;
+    color: var(--a-danger);
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  button {
+    width: 100%;
+    justify-content: center;
+    padding: 11px;
+  }
+</style>

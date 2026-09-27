@@ -1,0 +1,113 @@
+---
+import Base from '../../layouts/Base.astro';
+import PostCard from '../../components/PostCard.astro';
+import { CATEGORIES } from '../../config';
+import { listPosts } from '../../lib/db';
+
+const PAGE_SIZE = 9;
+const params = Astro.url.searchParams;
+const category = (CATEGORIES as readonly string[]).includes(params.get('category') ?? '') ? params.get('category')! : '';
+const all = await listPosts({ category: category || undefined });
+const pages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
+const page = Math.min(pages, Math.max(1, Number(params.get('page')) || 1));
+const posts = all.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+const href = (c: string, p = 1) => {
+  const q = new URLSearchParams();
+  if (c) q.set('category', c);
+  if (p > 1) q.set('page', String(p));
+  const s = q.toString();
+  return `/insights${s ? `?${s}` : ''}`;
+};
+---
+
+<Base title="投資觀點" description="鋒塗利資產管理的市場觀點、資產配置與財富傳承專欄文章。">
+  <section class="page-hero">
+    <div class="wrap">
+      <p class="eyebrow">Insights</p>
+      <h1>投資觀點</h1>
+      <p>研究團隊對市場趨勢、資產配置與財富規劃的觀察與分享。</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <nav class="filters" aria-label="文章分類">
+        <a href={href('')} class:list={{ on: !category }}>全部</a>
+        {CATEGORIES.map((c) => <a href={href(c)} class:list={{ on: category === c }}>{c}</a>)}
+      </nav>
+
+      {posts.length ? (
+        <div class="posts">{posts.map((post) => <PostCard post={post} />)}</div>
+      ) : (
+        <p class="empty">目前尚無文章，敬請期待。</p>
+      )}
+
+      {pages > 1 && (
+        <nav class="pager" aria-label="分頁">
+          {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
+            <a href={href(category, n)} class:list={{ on: n === page }} aria-current={n === page ? 'page' : undefined}>{n}</a>
+          ))}
+        </nav>
+      )}
+    </div>
+  </section>
+</Base>
+
+<style>
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 44px;
+  }
+  .filters a,
+  .pager a {
+    padding: 8px 20px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    text-decoration: none;
+    font-size: 14px;
+    letter-spacing: 0.1em;
+    border-radius: 999px;
+  }
+  .filters a:hover,
+  .pager a:hover {
+    border-color: var(--gold-500);
+  }
+  .filters a.on,
+  .pager a.on {
+    background: var(--navy-800);
+    border-color: var(--navy-800);
+    color: #fff;
+  }
+  .posts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+  }
+  .empty {
+    text-align: center;
+    color: var(--ink-soft);
+    padding: 60px 0;
+  }
+  .pager {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 56px;
+  }
+  .pager a {
+    padding: 8px 15px;
+  }
+  @media (max-width: 960px) {
+    .posts {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  @media (max-width: 640px) {
+    .posts {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

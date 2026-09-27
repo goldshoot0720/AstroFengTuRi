@@ -1,0 +1,115 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { listMessages } from '../../lib/db';
+import { formatDateTime } from '../../lib/format';
+
+const messages = await listMessages();
+---
+
+<Admin title="聯絡訊息">
+  <h1>聯絡訊息</h1>
+  <p class="sub">來自網站「聯絡我們」表單的諮詢，共 {messages.length} 則。</p>
+
+  {messages.length === 0 ? (
+    <div class="panel empty">目前沒有任何訊息。</div>
+  ) : (
+    <div class="list">
+      {messages.map((m) => (
+        <article class:list={['panel', 'msg', { unread: !m.read }]} data-id={m.id}>
+          <header>
+            <div>
+              <strong>{m.name}</strong>
+              <span class="badge badge--draft">{m.topic}</span>
+              {!m.read && <span class="badge badge--pub dot">未讀</span>}
+            </div>
+            <time>{formatDateTime(m.createdAt)}</time>
+          </header>
+          <p class="contact">
+            {m.email && <a href={`mailto:${m.email}`}>{m.email}</a>}
+            {m.phone && <a href={`tel:${m.phone}`}>{m.phone}</a>}
+          </p>
+          <p class="body">{m.body}</p>
+          <footer>
+            <button class="a-btn a-btn--sm" data-toggle={m.read ? 'unread' : 'read'}>{m.read ? '標為未讀' : '標為已讀'}</button>
+            <button class="a-btn a-btn--sm a-btn--danger" data-remove>刪除</button>
+          </footer>
+        </article>
+      ))}
+    </div>
+  )}
+</Admin>
+
+<script>
+  document.querySelectorAll<HTMLElement>('.msg').forEach((card) => {
+    const id = card.dataset.id;
+    card.querySelector<HTMLButtonElement>('[data-toggle]')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget as HTMLButtonElement;
+      const read = btn.dataset.toggle === 'read';
+      const res = await fetch(`/api/admin/messages/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ read }),
+      });
+      if (res.ok) location.reload();
+    });
+    card.querySelector<HTMLButtonElement>('[data-remove]')?.addEventListener('click', async () => {
+      if (!confirm('確定要刪除這則訊息嗎？')) return;
+      const res = await fetch(`/api/admin/messages/${id}`, { method: 'DELETE' });
+      if (res.ok) card.remove();
+    });
+  });
+</script>
+
+<style>
+  .sub {
+    color: var(--a-soft);
+    margin: 4px 0 24px;
+  }
+  .empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--a-soft);
+  }
+  .list {
+    display: grid;
+    gap: 12px;
+  }
+  .msg {
+    padding: 18px 20px;
+  }
+  .msg.unread {
+    border-left: 3px solid var(--a-gold);
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  header div {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  time {
+    font-size: 13px;
+    color: var(--a-soft);
+  }
+  .contact {
+    display: flex;
+    gap: 16px;
+    font-size: 14px;
+    margin: 6px 0 10px;
+  }
+  .contact a {
+    color: #1b5fa8;
+  }
+  .body {
+    white-space: pre-wrap;
+    margin: 0 0 14px;
+  }
+  footer {
+    display: flex;
+    gap: 8px;
+  }
+</style>

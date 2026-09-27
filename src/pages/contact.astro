@@ -1,0 +1,168 @@
+---
+import Base from '../layouts/Base.astro';
+import { SITE } from '../config';
+import { addMessage } from '../lib/db';
+
+const TOPICS = ['資產配置', '財富傳承', '退休規劃', '企業財務顧問', '其他'];
+
+const sent = Astro.url.searchParams.get('sent') === '1';
+let error = '';
+let values = { name: '', email: '', phone: '', topic: TOPICS[0], body: '' };
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const get = (k: string, max: number) => String(form.get(k) ?? '').trim().slice(0, max);
+  values = {
+    name: get('name', 50),
+    email: get('email', 120),
+    phone: get('phone', 30),
+    topic: TOPICS.includes(get('topic', 20)) ? get('topic', 20) : '其他',
+    body: get('body', 3000),
+  };
+
+  // 蜜罐欄位被填寫視為機器人：不儲存，但一樣顯示成功
+  const isBot = Boolean(get('website', 200));
+  if (isBot) {
+    return Astro.redirect('/contact?sent=1', 303);
+  } else if (!values.name || !values.body) {
+    error = '請填寫姓名與諮詢內容。';
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email) && !values.phone) {
+    error = '請至少留下有效的電子信箱或聯絡電話，方便我們與您聯繫。';
+  } else {
+    await addMessage(values);
+    // 送出後轉址，避免重新整理時重複送出
+    return Astro.redirect('/contact?sent=1', 303);
+  }
+}
+---
+
+<Base title="聯絡我們" description="預約鋒塗利資產管理的專屬諮詢服務。">
+  <section class="page-hero">
+    <div class="wrap">
+      <p class="eyebrow">Contact</p>
+      <h1>聯絡我們</h1>
+      <p>留下您的需求，專屬顧問將於一個工作天內與您聯繫。</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap grid">
+      <aside class="info">
+        <h2>聯絡資訊</h2>
+        <dl>
+          <dt>電話</dt>
+          <dd><a href={`tel:${SITE.phone.replace(/-/g, '')}`}>{SITE.phone}</a></dd>
+          <dt>電子信箱</dt>
+          <dd><a href={`mailto:${SITE.email}`}>{SITE.email}</a></dd>
+          <dt>地址</dt>
+          <dd>{SITE.address}</dd>
+          <dt>服務時間</dt>
+          <dd>{SITE.hours}</dd>
+        </dl>
+      </aside>
+
+      <div class="form-box">
+        {sent ? (
+          <div class="done">
+            <h2>感謝您的來信</h2>
+            <p>我們已收到您的諮詢，顧問將儘快與您聯繫。</p>
+            <a href="/" class="btn btn--navy">回到首頁</a>
+          </div>
+        ) : (
+          <form method="post">
+            {error && <p class="notice notice--err">{error}</p>}
+            <div class="row">
+              <div class="field">
+                <label for="name">姓名 *</label>
+                <input id="name" name="name" required maxlength="50" value={values.name} autocomplete="name" />
+              </div>
+              <div class="field">
+                <label for="topic">諮詢項目</label>
+                <select id="topic" name="topic">
+                  {TOPICS.map((t) => <option selected={t === values.topic}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label for="email">電子信箱</label>
+                <input id="email" name="email" type="email" maxlength="120" value={values.email} autocomplete="email" />
+              </div>
+              <div class="field">
+                <label for="phone">聯絡電話</label>
+                <input id="phone" name="phone" type="tel" maxlength="30" value={values.phone} autocomplete="tel" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="body">諮詢內容 *</label>
+              <textarea id="body" name="body" rows="6" required maxlength="3000">{values.body}</textarea>
+            </div>
+            <div class="hp" aria-hidden="true">
+              <label>請勿填寫 <input name="website" tabindex="-1" autocomplete="off" /></label>
+            </div>
+            <p class="privacy">送出即表示您同意本公司依個人資料保護法蒐集並處理您的資料，僅用於回覆本次諮詢。</p>
+            <button class="btn btn--navy" type="submit">送出諮詢</button>
+          </form>
+        )}
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1.8fr;
+    gap: clamp(32px, 5vw, 72px);
+  }
+  .info h2 {
+    font-size: 24px;
+  }
+  dl {
+    margin: 0;
+  }
+  dt {
+    font-size: 13px;
+    letter-spacing: 0.16em;
+    color: var(--gold-500);
+    margin-top: 22px;
+  }
+  dd {
+    margin: 4px 0 0;
+  }
+  dd a {
+    text-decoration: none;
+  }
+  .form-box {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    padding: clamp(24px, 4vw, 48px);
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 20px;
+  }
+  .hp {
+    position: absolute;
+    left: -9999px;
+  }
+  .privacy {
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .done {
+    text-align: center;
+    padding: 40px 0;
+  }
+  .done p {
+    color: var(--ink-soft);
+    margin-bottom: 28px;
+  }
+  @media (max-width: 800px) {
+    .grid,
+    .row {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

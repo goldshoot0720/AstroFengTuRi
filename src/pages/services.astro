@@ -1,0 +1,112 @@
+---
+import Base from '../layouts/Base.astro';
+import { SERVICES } from '../lib/services';
+---
+
+<Base title="服務項目" description="鋒塗利資產管理提供資產配置、財富傳承、退休規劃與企業財務顧問等服務。">
+  <section class="page-hero">
+    <div class="wrap">
+      <p class="eyebrow">Services</p>
+      <h1>服務項目</h1>
+      <p>以整體財務觀點出發，為不同人生階段與需求，提供量身打造的專業服務。</p>
+    </div>
+  </section>
+
+  {SERVICES.map((s, i) => (
+    <section id={s.id} class:list={['section', 'svc', { 'section--paper': i % 2 === 0 }]}>
+      <div class="wrap svc-grid">
+        <div>
+          <span class="icon" set:html={s.icon} />
+          <p class="num">0{i + 1}</p>
+          <h2>{s.title}</h2>
+          <p class="summary">{s.summary}</p>
+        </div>
+        <div>
+          <p class="detail">{s.detail}</p>
+          <ul>
+            {s.points.map((p) => <li>{p}</li>)}
+          </ul>
+        </div>
+      </div>
+    </section>
+  ))}
+
+  <section class="section section--navy">
+    <div class="wrap center">
+      <h2>不確定哪一項服務適合您？</h2>
+      <p>我們的顧問將先了解您的需求，再提出最合適的建議。</p>
+      <a href="/contact" class="btn btn--gold">預約諮詢</a>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .svc {
+    scroll-margin-top: 76px;
+  }
+  .svc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr;
+    gap: clamp(32px, 6vw, 96px);
+  }
+  .icon {
+    display: block;
+    width: 52px;
+    height: 52px;
+    color: var(--gold-500);
+  }
+  .icon :global(svg) {
+    width: 100%;
+    height: 100%;
+  }
+  .num {
+    font-family: var(--serif);
+    color: var(--gold-500);
+    letter-spacing: 0.2em;
+    margin: 20px 0 4px;
+  }
+  h2 {
+    font-size: clamp(26px, 3.2vw, 36px);
+  }
+  .summary {
+    color: var(--ink-soft);
+  }
+  .detail {
+    font-size: 16.5px;
+    line-height: 2;
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 28px 0 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 24px;
+  }
+  li {
+    padding-left: 22px;
+    position: relative;
+  }
+  li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.8em;
+    width: 10px;
+    height: 1px;
+    background: var(--gold-500);
+  }
+  .center {
+    text-align: center;
+  }
+  .center p {
+    color: #aab8c5;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 800px) {
+    .svc-grid,
+    ul {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

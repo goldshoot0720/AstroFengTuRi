@@ -1,0 +1,20 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import PostEditor from '../../../components/admin/PostEditor.astro';
+---
+
+<Admin title="新增文章">
+  <p class="crumb"><a href="/admin">← 文章管理</a></p>
+  <PostEditor />
+</Admin>
+
+<style>
+  .crumb {
+    margin: 0 0 8px;
+    font-size: 14px;
+  }
+  .crumb a {
+    color: var(--a-soft);
+    text-decoration: none;
+  }
+</style>
