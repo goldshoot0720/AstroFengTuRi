@@ -1,12 +1,14 @@
 ---
 import '../styles/admin.css';
 import { SITE } from '../config';
+import { storageStatus } from '../lib/storage';
 
 interface Props {
   title: string;
 }
 const { title } = Astro.props;
 const path = Astro.url.pathname;
+const storage = storageStatus();
 const links = [
   { href: '/admin', label: '文章管理', match: (p: string) => p === '/admin' || /^\/admin\/posts\/(?!new)/.test(p) },
   { href: '/admin/posts/new', label: '新增文章', match: (p: string) => p === '/admin/posts/new' },
@@ -36,6 +38,12 @@ const links = [
         </div>
       </aside>
       <main class="main">
+        {!storage.writable && (
+          <p class="storage-warn">
+            ⚠️ 尚未連結 Vercel Blob Storage，目前無法儲存文章、上傳圖片或接收聯絡表單。請在 Vercel 專案的 Storage 分頁建立 Private
+            Blob Store 並連結此專案，再重新部署。
+          </p>
+        )}
         <slot />
       </main>
     </div>
@@ -116,6 +124,15 @@ const links = [
   .side-foot a:hover,
   .side-foot button:hover {
     color: var(--a-gold);
+  }
+.storage-warn {
+    margin: 0 0 24px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    background: #fdf3e1;
+    border: 1px solid #f1d49b;
+    color: #7a4d00;
+    font-size: 14px;
   }
   .main {
     padding: 32px clamp(16px, 3vw, 40px) 64px;

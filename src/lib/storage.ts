@@ -14,8 +14,13 @@ export interface Doc<T> {
   etag?: string;
 }
 
+/** 目前的儲存方式，以及是否能寫入（Vercel 上未連結 Blob 時無法寫入） */
+export function storageStatus() {
+  return { mode: useBlob() ? 'blob' : 'local', writable: useBlob() || !process.env.VERCEL } as const;
+}
+
 function assertWritable() {
-  if (!useBlob() && process.env.VERCEL) {
+  if (!storageStatus().writable) {
     throw new Error('Vercel 上無法寫入檔案，請在 Vercel 專案連結 Blob Storage（BLOB_READ_WRITE_TOKEN）');
   }
 }
