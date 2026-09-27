@@ -1,0 +1,92 @@
+// 儲存層：有設定 BLOB_READ_WRITE_TOKEN 時使用 Vercel Blob（私有），否則使用本機 DATA_DIR
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
+import { BlobPreconditionFailedError, get, put } from '@vercel/blob';
+
+const DATA_DIR = path.resolve(process.env.DATA_DIR || './data');
+const useBlob = () => Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+
+export class ConflictError extends Error {}
+
+export interface Doc<T> {
+  data: T;
+  /** Blob 的 ETag，寫回時用來確認期間沒有被別人改過 */
+  etag?: string;
+}
+
+function assertWritable() {
+  if (!useBlob() && process.env.VERCEL) {
+    throw new Error('Vercel 上無法寫入檔案，請在 Vercel 專案連結 Blob Storage（BLOB_READ_WRITE_TOKEN）');
+  }
+}
+
+/* ---------- JSON 文件 ---------- */
+
+export async function readDoc<T>(name: string): Promise<Doc<T> | null> {
+  if (useBlob()) {
+    const res = await get(name, { access: 'private', useCache: false });
+    if (!res || res.statusCode !== 200) return null;
+    return { data: JSON.parse(await new Response(res.stream).text()) as T, etag: res.blob.etag };
+  }
+  try {
+    return { data: JSON.parse(await fs.readFile(path.join(DATA_DIR, name), 'utf8')) as T };
+  } catch (err: any) {
+    if (err?.code === 'ENOENT') return null;
+    throw err;
+  }
+}
+
+/** etag 為 null 代表預期文件尚不存在 */
+export async function writeDoc(name: string, data: unknown, etag?: string | null) {
+  assertWritable();
+  const body = JSON.stringify(data, null, 2);
+  if (useBlob()) {
+    try {
+      await put(name, body, {
+        access: 'private',
+        contentType: 'application/json',
+        addRandomSuffix: false,
+        allowOverwrite: etag != null,
+        ...(etag ? { ifMatch: etag } : {}),
+        cacheControlMaxAge: 60,
+      });
+    } catch (err) {
+      // ETag 不符，或文件在讀取後被其他請求建立
+      if (err instanceof BlobPreconditionFailedError || (etag == null && /already exists/i.test(String(err)))) {
+        throw new ConflictError(name);
+      }
+      throw err;
+    }
+    return;
+  }
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  const target = path.join(DATA_DIR, name);
+  const tmp = `${target}.${process.pid}.tmp`;
+  await fs.writeFile(tmp, body, 'utf8');
+  await fs.rename(tmp, target);
+}
+
+/* ---------- 上傳檔案 ---------- */
+
+export async function saveFile(name: string, data: Buffer, contentType: string) {
+  assertWritable();
+  if (useBlob()) {
+    await put(`uploads/${name}`, data, { access: 'private', contentType, addRandomSuffix: false });
+    return;
+  }
+  const dir = path.join(DATA_DIR, 'uploads');
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, name), data);
+}
+
+export async function readFile(name: string): Promise<BodyInit | null> {
+  if (useBlob()) {
+    const res = await get(`uploads/${name}`, { access: 'private' });
+    return res?.statusCode === 200 ? res.stream : null;
+  }
+  try {
+    return new Uint8Array(await fs.readFile(path.join(DATA_DIR, 'uploads', name)));
+  } catch {
+    return null;
+  }
+}

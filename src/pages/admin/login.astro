@@ -1,7 +1,7 @@
 ---
 import '../../styles/admin.css';
 import { SITE } from '../../config';
-import { checkPassword, createSession } from '../../lib/auth';
+import { authConfigError, checkPassword, createSession } from '../../lib/auth';
 
 const nextParam = Astro.url.searchParams.get('next') ?? '';
 const next = /^\/admin(\/[\w\-/]*)?$/.test(nextParam) ? nextParam : '/admin';
@@ -11,13 +11,16 @@ if (Astro.locals.isAdmin) return Astro.redirect(next);
 let error = '';
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
-  if (checkPassword(String(form.get('password') ?? ''))) {
+  error = authConfigError();
+  if (!error && checkPassword(String(form.get('password') ?? ''))) {
     createSession(Astro.cookies);
     return Astro.redirect(next);
   }
-  // 登入失敗時稍作延遲，降低暴力破解效率
-  await new Promise((r) => setTimeout(r, 800));
-  error = process.env.ADMIN_PASSWORD || import.meta.env.ADMIN_PASSWORD ? '密碼錯誤，請再試一次。' : '尚未設定 ADMIN_PASSWORD 環境變數。';
+  if (!error) {
+    // 登入失敗時稍作延遲，降低暴力破解效率
+    await new Promise((r) => setTimeout(r, 800));
+    error = '密碼錯誤，請再試一次。';
+  }
 }
 ---
 

@@ -1,10 +1,7 @@
-// 以 JSON 檔案作為輕量資料庫：文章存於 data/posts.json，聯絡表單存於 data/messages.json
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
+// 資料層：文章存於 posts.json，聯絡表單存於 messages.json（實際位置由 storage.ts 決定）
 import { randomUUID } from 'node:crypto';
-
-export const DATA_DIR = path.resolve(process.env.DATA_DIR || './data');
-export const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
+import { ConflictError, readDoc, writeDoc } from './storage';
+import seedPosts from '../data/seed-posts.json';
 
 export type PostStatus = 'draft' | 'published';
 
@@ -37,7 +34,15 @@ export interface Message {
   read: boolean;
 }
 
-// 同一個檔案的寫入依序執行，避免同時存檔互相覆蓋
+// 尚無資料時使用的初始內容（例如剛部署到新的 Blob Storage）
+const SEEDS: Record<string, unknown[]> = { 'posts.json': seedPosts };
+
+async function readJson<T>(file: string): Promise<T[]> {
+  const doc = await readDoc<T[]>(file);
+  return doc?.data ?? ((SEEDS[file] ?? []) as T[]);
+}
+
+// 同一個執行個體內的寫入依序執行；跨執行個體則靠 ETag 偵測衝突後重試
 const queues = new Map<string, Promise<unknown>>();
 
 function serialize<T>(file: string, task: () => Promise<T>): Promise<T> {
@@ -47,27 +52,18 @@ function serialize<T>(file: string, task: () => Promise<T>): Promise<T> {
   return next;
 }
 
-async function readJson<T>(file: string, fallback: T): Promise<T> {
-  try {
-    return JSON.parse(await fs.readFile(path.join(DATA_DIR, file), 'utf8')) as T;
-  } catch (err: any) {
-    if (err?.code === 'ENOENT') return fallback;
-    throw err;
-  }
-}
-
-async function writeJson(file: string, data: unknown) {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  const target = path.join(DATA_DIR, file);
-  const tmp = `${target}.${process.pid}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
-  await fs.rename(tmp, target);
-}
-
-function update<T>(file: string, mutate: (items: T[]) => T[] | Promise<T[]>) {
+function update<T>(file: string, mutate: (items: T[]) => T[]) {
   return serialize(file, async () => {
-    const items = await readJson<T[]>(file, []);
-    await writeJson(file, await mutate(items));
+    for (let attempt = 0; ; attempt++) {
+      const doc = await readDoc<T[]>(file);
+      const items = doc?.data ?? ((SEEDS[file] ?? []) as T[]);
+      try {
+        await writeDoc(file, mutate(items), doc ? (doc.etag ?? '') : null);
+        return;
+      } catch (err) {
+        if (!(err instanceof ConflictError) || attempt >= 4) throw err;
+      }
+    }
   });
 }
 
@@ -81,7 +77,7 @@ const byDateDesc = (a: Post, b: Post) => b.publishedAt.localeCompare(a.published
 export const isLive = (p: Post) => p.status === 'published' && p.publishedAt <= new Date().toISOString();
 
 export async function listPosts(opts: { includeDrafts?: boolean; category?: string } = {}) {
-  const posts = await readJson<Post[]>(POSTS, []);
+  const posts = await readJson<Post>(POSTS);
   return posts
     .filter((p) => opts.includeDrafts || isLive(p))
     .filter((p) => !opts.category || p.category === opts.category)
@@ -89,11 +85,11 @@ export async function listPosts(opts: { includeDrafts?: boolean; category?: stri
 }
 
 export async function getPostById(id: string) {
-  return (await readJson<Post[]>(POSTS, [])).find((p) => p.id === id);
+  return (await readJson<Post>(POSTS)).find((p) => p.id === id);
 }
 
 export async function getPublishedPostBySlug(slug: string) {
-  const posts = await readJson<Post[]>(POSTS, []);
+  const posts = await readJson<Post>(POSTS);
   return posts.find((p) => p.slug === slug && isLive(p));
 }
 
@@ -139,7 +135,7 @@ export async function deletePost(id: string) {
 const MESSAGES = 'messages.json';
 
 export async function listMessages() {
-  const items = await readJson<Message[]>(MESSAGES, []);
+  const items = await readJson<Message>(MESSAGES);
   return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 

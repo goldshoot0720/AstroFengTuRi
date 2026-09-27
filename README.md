@@ -27,23 +27,36 @@ cp .env.example .env   # 修改 ADMIN_PASSWORD 與 SESSION_SECRET
 npm run dev            # http://localhost:4321 ，後台 http://localhost:4321/admin
 ```
 
-## 正式部署
+## 部署到 Vercel
+
+專案在 Vercel 上建置時會自動改用 `@astrojs/vercel`，資料改存到 **Vercel Blob**（私有）。
+
+1. 在 Vercel 專案的 **Storage** 分頁建立 Blob Store，存取權限選 **Private**，並連結到此專案，Vercel 會自動加入 `BLOB_READ_WRITE_TOKEN`
+2. 在 **Settings → Environment Variables** 加入 `ADMIN_PASSWORD` 與 `SESSION_SECRET`
+3. 重新部署（Deployments → Redeploy）
+
+第一次啟動時 Blob 裡還沒有資料，網站會顯示 `src/data/seed-posts.json` 的初始文章；在後台第一次儲存後，文章就會寫入 Blob。
+
+> 圖片大小上限為 4MB（Vercel Functions 的請求上限為 4.5MB）。
+
+## 部署到自己的主機
 
 ```bash
 npm run build
 npm start              # 會自動讀取 .env；可用 HOST / PORT 環境變數指定位址與埠號
 ```
 
-需要 Node.js 22 以上。建議以 pm2 或 systemd 常駐，並在前面放 Nginx / Caddy 處理 HTTPS。
+需要 Node.js 22 以上。建議以 pm2 或 systemd 常駐，並在前面放 Nginx / Caddy 處理 HTTPS。資料會以 JSON 檔存放在 `DATA_DIR`，請將此目錄納入備份。
+
+## 環境變數
 
 | 環境變數 | 說明 |
 | --- | --- |
 | `ADMIN_PASSWORD` | 後台登入密碼 |
 | `SESSION_SECRET` | 簽署登入 Cookie 的隨機字串（`openssl rand -hex 32`） |
-| `DATA_DIR` | 文章、訊息與上傳圖片的存放目錄，預設 `./data` |
-| `SITE_URL` | 網站正式網址，用於 canonical 與 og:image |
-
-> 資料以 JSON 檔存放在 `DATA_DIR`，請將此目錄納入備份。若部署在 Vercel、Netlify 等無持久化磁碟的平台，需改為資料庫儲存（只需改寫 `src/lib/db.ts`）。
+| `BLOB_READ_WRITE_TOKEN` | 設定後改用 Vercel Blob 儲存資料（Vercel 連結 Blob Store 時會自動加入） |
+| `DATA_DIR` | 未使用 Blob 時的本機資料目錄，預設 `./data` |
+| `SITE_URL` | 網站正式網址，用於 canonical 與 og:image（Vercel 上預設使用正式網域） |
 
 ## 客製化
 
@@ -61,10 +74,12 @@ src/
 ├── config.ts                 網站資訊設定
 ├── middleware.ts             後台登入保護
 ├── lib/
-│   ├── db.ts                 JSON 檔案資料層（文章、訊息）
+│   ├── db.ts                 資料層（文章、訊息）
+│   ├── storage.ts            儲存層：Vercel Blob 或本機檔案
 │   ├── auth.ts               登入驗證與 Session
 │   ├── sanitize.ts           過濾 Quill 輸出的 HTML
 │   └── post-input.ts         文章欄位驗證
+├── data/seed-posts.json      初始文章（尚無資料時使用）
 ├── components/admin/PostEditor.astro   Quill 編輯器
 ├── pages/
 │   ├── index / about / services / contact.astro
@@ -72,14 +87,12 @@ src/
 │   ├── admin/                後台頁面
 │   ├── api/admin/            後台 API（文章、上傳、訊息）
 │   └── uploads/[file].ts     提供上傳的圖片
-data/
-├── posts.json                文章資料
-└── uploads/                  上傳圖片
+data/                         本機模式的資料（不納入版控）
 ```
 
 ## 安全性說明
 
 - 文章 HTML 儲存前會以 `sanitize-html` 白名單過濾，只保留 Quill 會產生的標籤與樣式，iframe 僅允許 YouTube／Vimeo
-- 上傳只接受 JPG / PNG / WebP / GIF，單檔 5MB，檔名由伺服器隨機產生
+- 上傳只接受 JPG / PNG / WebP / GIF，單檔 4MB，檔名由伺服器隨機產生
 - 表單與 API 受 Astro 內建 Origin 檢查（CSRF 防護）保護，Cookie 設為 HttpOnly、SameSite=Lax
 - 聯絡表單有蜜罐欄位阻擋機器人

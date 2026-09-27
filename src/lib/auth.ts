@@ -5,8 +5,17 @@ import type { AstroCookies } from 'astro';
 export const SESSION_COOKIE = 'ftl_admin';
 const SESSION_HOURS = 12;
 
+const env = (key: 'ADMIN_PASSWORD' | 'SESSION_SECRET') => process.env[key] || import.meta.env[key];
+
+/** 回傳缺少的必要設定（例如部署時忘了設環境變數），沒問題則回傳空字串 */
+export function authConfigError() {
+  if (!env('ADMIN_PASSWORD')) return '伺服器尚未設定 ADMIN_PASSWORD 環境變數。';
+  if (import.meta.env.PROD && !env('SESSION_SECRET')) return '伺服器尚未設定 SESSION_SECRET 環境變數。';
+  return '';
+}
+
 function secret() {
-  const s = process.env.SESSION_SECRET || import.meta.env.SESSION_SECRET;
+  const s = env('SESSION_SECRET');
   if (!s && import.meta.env.PROD) throw new Error('SESSION_SECRET 未設定');
   return s || 'dev-only-insecure-secret';
 }
@@ -22,7 +31,7 @@ function safeEqual(a: string, b: string) {
 }
 
 export function checkPassword(input: string) {
-  const expected = process.env.ADMIN_PASSWORD || import.meta.env.ADMIN_PASSWORD;
+  const expected = env('ADMIN_PASSWORD');
   if (!expected) return false;
   // 先各自雜湊再比較，避免長度差異洩漏資訊
   return safeEqual(sign(input), sign(expected));

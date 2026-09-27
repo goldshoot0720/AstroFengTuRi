@@ -1,8 +1,8 @@
 node_modules/
 dist/
 .astro/
+.vercel/
 .env
-data/uploads/*
-!data/uploads/.gitkeep
-data/messages.json
 .DS_Store
+# 本機執行時的資料（文章、訊息、上傳圖片）；初始文章在 src/data/seed-posts.json
+/data/
