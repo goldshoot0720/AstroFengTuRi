@@ -1,7 +1,7 @@
 // 儲存層：已連結 Vercel Blob 時（BLOB_READ_WRITE_TOKEN 或 OIDC 的 BLOB_STORE_ID）使用私有 Blob，否則使用本機 DATA_DIR
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { BlobPreconditionFailedError, get, put } from '@vercel/blob';
+import { BlobNotFoundError, BlobPreconditionFailedError, get, head, put } from '@vercel/blob';
 
 const DATA_DIR = path.resolve(process.env.DATA_DIR || './data');
 const useBlob = () => Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
@@ -27,11 +27,26 @@ function assertWritable() {
 
 /* ---------- JSON 文件 ---------- */
 
-export async function readDoc<T>(name: string): Promise<Doc<T> | null> {
+/**
+ * 讀取 JSON 文件。withEtag 為 true 時一併取得 Blob 的 ETag（準備寫回時才需要）。
+ * 注意：下載回應標頭裡的 etag 會因 CDN / 壓縮而與儲存端不同，不能拿來做條件寫入，
+ * 必須另外用 head() 取得正式的 ETag。
+ */
+export async function readDoc<T>(name: string, { withEtag = false } = {}): Promise<Doc<T> | null> {
   if (useBlob()) {
+    let etag: string | undefined;
+    if (withEtag) {
+      // 先取 ETag 再讀內容：若兩者之間被改寫，寫回時 ETag 不符會觸發重試，不會蓋掉別人的變更
+      try {
+        etag = (await head(name)).etag;
+      } catch (err) {
+        if (err instanceof BlobNotFoundError) return null;
+        throw err;
+      }
+    }
     const res = await get(name, { access: 'private', useCache: false });
     if (!res || res.statusCode !== 200) return null;
-    return { data: JSON.parse(await new Response(res.stream).text()) as T, etag: res.blob.etag };
+    return { data: JSON.parse(await new Response(res.stream).text()) as T, etag };
   }
   try {
     return { data: JSON.parse(await fs.readFile(path.join(DATA_DIR, name), 'utf8')) as T };

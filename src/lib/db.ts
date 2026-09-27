@@ -55,7 +55,7 @@ function serialize<T>(file: string, task: () => Promise<T>): Promise<T> {
 function update<T>(file: string, mutate: (items: T[]) => T[]) {
   return serialize(file, async () => {
     for (let attempt = 0; ; attempt++) {
-      const doc = await readDoc<T[]>(file);
+      const doc = await readDoc<T[]>(file, { withEtag: true });
       const items = doc?.data ?? ((SEEDS[file] ?? []) as T[]);
       try {
         await writeDoc(file, mutate(items), doc ? (doc.etag ?? '') : null);
